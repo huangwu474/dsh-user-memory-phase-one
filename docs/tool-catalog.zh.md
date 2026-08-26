@@ -43,6 +43,7 @@
 | `@deepseek-ai/dsh-tool-jobs` | `job_kill`、`job_list`、`job_output` | `ctx.tools`、`ctx.jobs`、`ctx.systemPrompt` | `tool/call`、`tool/result`、`user/message via agent.inject() for background completion notices` | - | 与任务种类无关的后台任务控制器：后台 bash 命令、PTY 发送和 subagent 都通过相同的 3 个工具读取、列出和终止。加载该插件会挂接控制器，从而启用生产方的 `ctx.jobs.start()`。 |
 | `@deepseek-ai/dsh-experimental-tool-agent-team` | `followup_task`、`interrupt_agent`、`list_agents`、`send_message`、`spawn_teammate`、`team_task_create`、`team_task_get`、`team_task_list`、`team_task_update`、`wait_agent` | `ctx.tools`、`ctx.systemPrompt`、`ctx.agentTeams`、`an exact live Team member Agent` | `tool/call`、`team/member`、`team/message/queued`、`team/message/delivered`、`team/task`、`tool/result` | - | 这 10 个工具限定于隐式 Team Lead 与持久 teammate 作用域。随产品发布的 dsh-base bundle 默认禁用该包；文档中的 Agent Teams profile patch 会启用它，并禁用旧 continuable child 的同名控制工具。 |
 | `@deepseek-ai/dsh-tool-todo` | `todo_write` | `ctx.tools`、`owning Agent session` | `tool/call`、`todo/write`、`tool/result` | - | todo_write 是会话所有的状态；UI 将最新的 todo/write 事件渲染为检查清单。`allowParallelInProgress` 是没有默认值的必填项，因此本目录明确选择 `true`，对应描述允许同时存在多个 `in_progress` 项。选择 `false` 的部署会获得同一工具，但描述会要求只能有 1 个活动任务。 |
+| `@deepseek-ai/dsh-user-memory` | `delete_memory`、`save_memory`、`save_session_override`、`update_memory` | `ctx.tools`、`ctx.systemPrompt`、`ctx.storageDomain` | `tool/call`、`user_memory.saved_memories for durable facts`、`tool/result` | - | 可选，不在已发布的默认组合里。加载它的组合必须已经挂载存储中枢、一个 KV 后端和 storage-domain。相同文本会更新已有长期行。快照行为 `- [id] text`，以便 update_memory 和 delete_memory 抄写 id。仅本次覆盖留在进程内存中，永不进入 storageDomain。 |
 | `@deepseek-ai/dsh-tool-workflow` | `workflow` | `ctx.tools`、`ctx.workflowEngine`、`ctx.systemPrompt`、`a calling Agent (exec.agent parents the script children)` | `tool/call`、`tool/result` | - | - |
 | `@deepseek-ai/dsh-tool-web` | `web_fetch`、`web_search` | `ctx.tools`、`ctx.web`、`ctx.systemPrompt` | `tool/call`、`tool/result` | - | web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可见 schema 在更换后端时保持稳定。 |
 
@@ -2080,6 +2081,101 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 来源：[`packages/todo/tool-todo/src/index.ts`](../packages/todo/tool-todo/src/index.ts)
 
 todo_write 是会话所有的状态；UI 将最新的 todo/write 事件渲染为检查清单。`allowParallelInProgress` 是没有默认值的必填项，因此本目录明确选择 `true`，对应描述允许同时存在多个 `in_progress` 项。选择 `false` 的部署会获得同一工具，但描述会要求只能有 1 个活动任务。
+
+<a id="deepseek-aidsh-user-memory"></a>
+
+## `@deepseek-ai/dsh-user-memory`
+
+### `delete_memory`
+
+按 id 遗忘一条长期事实。从长期事实快照行的 "[id]" 前缀抄写该 id。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "memory_id": {
+      "type": "string",
+      "description": "Id of the durable fact to forget, copied from the snapshot \"[id]\" prefix."
+    }
+  },
+  "required": [
+    "memory_id"
+  ]
+}
+```
+
+来源：[`packages/memory/user-memory/src/index.ts`](../packages/memory/user-memory/src/index.ts)
+
+### `save_memory`
+
+保存一条可供后续对话使用的长期用户事实。用于用户要求记住的持久偏好或约束。不要用于仅本次或仅此行的请求。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "text": {
+      "type": "string",
+      "description": "One durable sentence. Do not write \"User said…\"."
+    }
+  },
+  "required": [
+    "text"
+  ]
+}
+```
+
+来源：[`packages/memory/user-memory/src/index.ts`](../packages/memory/user-memory/src/index.ts)
+
+### `save_session_override`
+
+存储仅本次聊天有效的覆盖，例如仅此行或仅这次的请求。它不是长期事实，也不会在本次对话结束后保留。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "text": {
+      "type": "string",
+      "description": "One this-session sentence."
+    }
+  },
+  "required": [
+    "text"
+  ]
+}
+```
+
+来源：[`packages/memory/user-memory/src/index.ts`](../packages/memory/user-memory/src/index.ts)
+
+### `update_memory`
+
+按 id 修正一条已有的长期事实。从长期事实快照行的 "[id]" 前缀抄写该 id。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "memory_id": {
+      "type": "string",
+      "description": "Id of the durable fact to correct, copied from the snapshot \"[id]\" prefix."
+    },
+    "text": {
+      "type": "string",
+      "description": "Replacement durable sentence."
+    }
+  },
+  "required": [
+    "memory_id",
+    "text"
+  ]
+}
+```
+
+来源：[`packages/memory/user-memory/src/index.ts`](../packages/memory/user-memory/src/index.ts)
+
+可选，不在已发布的默认组合里。加载它的组合必须已经挂载存储中枢、一个 KV 后端和 storage-domain。相同文本会更新已有长期行。快照行为 `- [id] text`，以便 update_memory 和 delete_memory 抄写 id。仅本次覆盖留在进程内存中，永不进入 storageDomain。
 
 <a id="deepseek-aidsh-tool-workflow"></a>
 

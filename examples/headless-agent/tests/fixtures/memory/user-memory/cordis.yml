@@ -1,0 +1,42 @@
+# Test-only composition: user-memory stays opt-in and needs the storage domain.
+- id: user-memory-mock-llm
+  name: './mock-llm.ts'
+
+- id: storage
+  name: '@deepseek-ai/dsh-storage'
+
+- id: storage-json
+  name: '@deepseek-ai/dsh-storage-json'
+  config:
+    root: './.storages'
+
+- id: storage-domain
+  name: '@deepseek-ai/dsh-storage-domain'
+  config:
+    backend: json
+
+- id: user-memory
+  name: '@deepseek-ai/dsh-user-memory'
+  config:
+    maxSavedMemories: 50
+    maxSessionOverrides: 8
+
+- id: agent-spine
+  name: '@deepseek-ai/dsh-agent-spine-demo'
+  config:
+    agents:
+      - id: main
+        provider: user-memory-mock
+        model: user-memory-mock
+        cwd: !!js process.cwd()
+    persona: 'Honor saved dietary facts.'
+    workspaceContext: false
+
+- id: persistence
+  name: '@deepseek-ai/dsh-session-persistence-jsonl'
+  config:
+    root: './.sessions'
+    compression: 'none'
+
+- id: checkpoint-policy
+  name: '@deepseek-ai/dsh-session-checkpoint-policy'

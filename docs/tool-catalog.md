@@ -39,6 +39,7 @@ This table connects model-visible tool names to the plugin package and service s
 | `@deepseek-ai/dsh-tool-jobs` | `job_kill`, `job_list`, `job_output` | `ctx.tools`, `ctx.jobs`, `ctx.systemPrompt` | `tool/call`, `tool/result`, `user/message via agent.inject() for background completion notices` | - | The kind-agnostic background-job controller: background bash commands, PTY sends, and subagents are read, listed, and killed through the same three tools. Loading the plugin attaches the controller that arms producers' `ctx.jobs.start()`. |
 | `@deepseek-ai/dsh-experimental-tool-agent-team` | `followup_task`, `interrupt_agent`, `list_agents`, `send_message`, `spawn_teammate`, `team_task_create`, `team_task_get`, `team_task_list`, `team_task_update`, `wait_agent` | `ctx.tools`, `ctx.systemPrompt`, `ctx.agentTeams`, `an exact live Team member Agent` | `tool/call`, `team/member`, `team/message/queued`, `team/message/delivered`, `team/task`, `tool/result` | - | All ten tools are scoped to implicit Team Leads and durable teammates. The shipped dsh-base bundle keeps the package disabled; the documented Agent Teams profile patch enables it while disabling the legacy continuable-child control names. |
 | `@deepseek-ai/dsh-tool-todo` | `todo_write` | `ctx.tools`, `owning Agent session` | `tool/call`, `todo/write`, `tool/result` | - | todo_write is session-owned state; UIs render the latest todo/write event as a checklist. `allowParallelInProgress` is required with no default, so the catalog states its choice: `true`, whose description invites several `in_progress` items. A deployment choosing `false` receives the same tool with a description asking for exactly one active task. |
+| `@deepseek-ai/dsh-user-memory` | `delete_memory`, `save_memory`, `save_session_override`, `update_memory` | `ctx.tools`, `ctx.systemPrompt`, `ctx.storageDomain` | `tool/call`, `user_memory.saved_memories for durable facts`, `tool/result` | - | Opt-in and not in shipped defaults. A composition must already mount the storage hub, a KV backend, and storage-domain. Identical text updates the existing durable row. Snapshot lines are `- [id] text` so update_memory and delete_memory can copy the id. This-session overrides stay in process memory and never enter storageDomain. |
 | `@deepseek-ai/dsh-tool-workflow` | `workflow` | `ctx.tools`, `ctx.workflowEngine`, `ctx.systemPrompt`, `a calling Agent (exec.agent parents the script children)` | `tool/call`, `tool/result` | - | - |
 | `@deepseek-ai/dsh-tool-web` | `web_fetch`, `web_search` | `ctx.tools`, `ctx.web`, `ctx.systemPrompt` | `tool/call`, `tool/result` | - | web_search and web_fetch keep provider selection behind ctx.web so model-visible schemas stay stable across backend swaps. |
 
@@ -2073,6 +2074,101 @@ Record and update a structured task list for the current work. Send the ENTIRE l
 Source: [`packages/todo/tool-todo/src/index.ts`](../packages/todo/tool-todo/src/index.ts)
 
 todo_write is session-owned state; UIs render the latest todo/write event as a checklist. `allowParallelInProgress` is required with no default, so the catalog states its choice: `true`, whose description invites several `in_progress` items. A deployment choosing `false` receives the same tool with a description asking for exactly one active task.
+
+<a id="deepseek-aidsh-user-memory"></a>
+
+## `@deepseek-ai/dsh-user-memory`
+
+### `delete_memory`
+
+Forget a durable fact by id. Copy the id from the "[id]" prefix on a durable-facts snapshot line.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "memory_id": {
+      "type": "string",
+      "description": "Id of the durable fact to forget, copied from the snapshot \"[id]\" prefix."
+    }
+  },
+  "required": [
+    "memory_id"
+  ]
+}
+```
+
+Source: [`packages/memory/user-memory/src/index.ts`](../packages/memory/user-memory/src/index.ts)
+
+### `save_memory`
+
+Save a durable user fact for future conversations. Use for lasting preferences or constraints the user asked to remember. Do not use for this-trip or this-time requests.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "text": {
+      "type": "string",
+      "description": "One durable sentence. Do not write \"User said…\"."
+    }
+  },
+  "required": [
+    "text"
+  ]
+}
+```
+
+Source: [`packages/memory/user-memory/src/index.ts`](../packages/memory/user-memory/src/index.ts)
+
+### `save_session_override`
+
+Store a this-chat-only override such as a this-trip or this-time request. It is not a durable fact and does not persist after this conversation.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "text": {
+      "type": "string",
+      "description": "One this-session sentence."
+    }
+  },
+  "required": [
+    "text"
+  ]
+}
+```
+
+Source: [`packages/memory/user-memory/src/index.ts`](../packages/memory/user-memory/src/index.ts)
+
+### `update_memory`
+
+Correct an existing durable fact by id. Copy the id from the "[id]" prefix on a durable-facts snapshot line.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "memory_id": {
+      "type": "string",
+      "description": "Id of the durable fact to correct, copied from the snapshot \"[id]\" prefix."
+    },
+    "text": {
+      "type": "string",
+      "description": "Replacement durable sentence."
+    }
+  },
+  "required": [
+    "memory_id",
+    "text"
+  ]
+}
+```
+
+Source: [`packages/memory/user-memory/src/index.ts`](../packages/memory/user-memory/src/index.ts)
+
+Opt-in and not in shipped defaults. A composition must already mount the storage hub, a KV backend, and storage-domain. Identical text updates the existing durable row. Snapshot lines are `- [id] text` so update_memory and delete_memory can copy the id. This-session overrides stay in process memory and never enter storageDomain.
 
 <a id="deepseek-aidsh-tool-workflow"></a>
 

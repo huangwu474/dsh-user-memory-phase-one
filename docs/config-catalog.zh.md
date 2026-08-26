@@ -3040,6 +3040,24 @@ export type ApprovalPolicy = 'ask' | 'never'
 
 来源：[`packages/interaction/user-approval/src/index.ts:177`](../packages/interaction/user-approval/src/index.ts)
 
+<a id="deepseek-aidsh-user-memory"></a>
+
+## `@deepseek-ai/dsh-user-memory`
+
+需要：`tools` · `systemPrompt` · `storageDomain`
+
+```ts config-catalog
+/** Deployment-authored injection caps. */
+export interface Config {
+  /** Maximum durable facts injected into one runtime-context snapshot. */
+  maxSavedMemories: number
+  /** Maximum this-session overrides injected into one runtime-context snapshot. */
+  maxSessionOverrides: number
+}
+```
+
+来源：[`packages/memory/user-memory/src/index.ts:38`](../packages/memory/user-memory/src/index.ts)
+
 <a id="deepseek-aidsh-web"></a>
 
 ## `@deepseek-ai/dsh-web`

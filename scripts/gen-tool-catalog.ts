@@ -7,7 +7,9 @@
  */
 
 import { globSync, readFileSync, writeFileSync } from 'node:fs'
-import { basename, resolve } from 'node:path'
+import { mkdtemp } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { basename, join, resolve } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import type { ToolSchema } from '@deepseek-ai/dsh-llm'
 import AgentRegistry from '@deepseek-ai/dsh-agent'
@@ -61,6 +63,10 @@ import * as ToolTasks from '@deepseek-ai/dsh-tool-jobs'
 import type TeamService from '@deepseek-ai/dsh-experimental-agent-team'
 import * as ToolTeam from '@deepseek-ai/dsh-experimental-tool-agent-team'
 import * as ToolTodo from '@deepseek-ai/dsh-tool-todo'
+import Storage from '@deepseek-ai/dsh-storage'
+import * as StorageJson from '@deepseek-ai/dsh-storage-json'
+import * as StorageDomain from '@deepseek-ai/dsh-storage-domain'
+import * as UserMemory from '@deepseek-ai/dsh-user-memory'
 import * as ToolSubagent from '@deepseek-ai/dsh-tool-subagent'
 import * as ToolWeb from '@deepseek-ai/dsh-tool-web'
 import VmWorkflowEngine from '@deepseek-ai/dsh-workflow-worker-thread'
@@ -572,6 +578,22 @@ const TOOL_PACKAGES: ToolPackage[] = [
     },
     note:
       'todo_write is session-owned state; UIs render the latest todo/write event as a checklist. `allowParallelInProgress` is required with no default, so the catalog states its choice: `true`, whose description invites several `in_progress` items. A deployment choosing `false` receives the same tool with a description asking for exactly one active task.',
+  },
+  {
+    pkg: '@deepseek-ai/dsh-user-memory',
+    dir: 'user-memory',
+    source: 'packages/memory/user-memory/src/index.ts',
+    requires: ['ctx.tools', 'ctx.systemPrompt', 'ctx.storageDomain'],
+    writes: ['tool/call', 'user_memory.saved_memories for durable facts', 'tool/result'],
+    async mount(ctx) {
+      const root = await mkdtemp(join(tmpdir(), 'dsh-user-memory-catalog-'))
+      await ctx.plugin(Storage)
+      await ctx.plugin(StorageJson, { root })
+      await ctx.plugin(StorageDomain, { backend: 'json' })
+      await ctx.plugin(UserMemory)
+    },
+    note:
+      'Opt-in and not in shipped defaults. A composition must already mount the storage hub, a KV backend, and storage-domain. Identical text updates the existing durable row. Snapshot lines are `- [id] text` so update_memory and delete_memory can copy the id. This-session overrides stay in process memory and never enter storageDomain.',
   },
   {
     pkg: '@deepseek-ai/dsh-tool-workflow',
